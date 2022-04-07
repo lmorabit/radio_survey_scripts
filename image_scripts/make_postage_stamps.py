@@ -1,28 +1,29 @@
 import pylab
 import numpy as np
-import pywcs
 import os
-import pyfits
+from astropy.io import fits
+from astropy.wcs import WCS
 import argparse
 import astropy
 
 def postage( fitsim, postfits, ra, dec, s, s2 ):
 
     ## get the image header and keywords
-    head = pyfits.getheader( fitsim )
-    hdulist = pyfits.open( fitsim )
+    hdulist = fits.open( fitsim )
+    head = hdulist[0].header
     # Parse the WCS keywords in the primary HDU
-#    wcs = astropy.wcs.WCS( hdulist[0].header )
-    wcs = pywcs.WCS( hdulist[0].header )
+    wcs = WCS( head, naxis=2 )
 
     # Some pixel coordinates of interest.
-    skycrd = np.array([ra,dec])
-    skycrd = np.array([[ra,dec,0,0]], np.float_)
+    skycrd = np.array([[ra,dec]])
 
     # Convert pixel coordinates to world coordinates
     # The second argument is "origin" -- in this case we're declaring we
     # have 1-based (Fortran-like) coordinates.
-    pixel = wcs.wcs_sky2pix(skycrd, 1)
+    try:
+        pixel = wcs.all_world2pix(skycrd, 1)
+    except:
+        pixel = wcs.all_world2pix(skycrd)
 
     # Some pixel coordinates of interest.
     x = pixel[0][0]
@@ -36,9 +37,9 @@ def postage( fitsim, postfits, ra, dec, s, s2 ):
     if s2 != 0:
         N2 = (s2/pixsize)
     else:
-	N2 = N
+        N2 = N
 
-    print 'x=%.5f, y=%.5f, N=%i' %(x,y,N)
+    print('x=%.5f, y=%.5f, N=%i' %(x,y,N))
 
     ximgsize = head.get('NAXIS1')
     yimgsize = head.get('NAXIS2')
@@ -71,14 +72,14 @@ def postage( fitsim, postfits, ra, dec, s, s2 ):
     yl = int(ylim1)
     xu = int(xlim2)
     yu = int(ylim2)
-    print 'postage stamp is %i x %i pixels' %(xu-xl,yu-yl)
+    print('postage stamp is %i x %i pixels' %(xu-xl,yu-yl))
 
     # make fits cutout
     inps = fitsim + '[%0.0f:%0.0f,%0.0f:%0.0f]' %(xl,xu,yl,yu)
 
     if os.path.isfile(postfits): os.system('rm '+postfits)
     os.system( 'fitscopy %s %s' %(inps,postfits) )
-    print  'fitscopy %s %s' %(inps,postfits) 
+    print('fitscopy %s %s' %(inps,postfits) )
 
     return postfits
 
